@@ -28,7 +28,7 @@ export async function createCarAd(
     doors?: string
     condition?: string
   },
-  images: File[],
+  imageUrls: string[],
 ) {
   try {
     console.log("Creating car ad...")
@@ -47,10 +47,6 @@ export async function createCarAd(
       return { success: false, error: "User not found" }
     }
 
-    // In a real app, you would upload images to a storage service like AWS S3 or Vercel Blob
-    // For this example, we'll use placeholder images
-    const imageUrls = Array(images.length).fill("/placeholder.svg?height=400&width=600")
-
     // Create new car ad
     const newAd = new CarAd({
       userId: session.userId,
@@ -66,7 +62,7 @@ export async function createCarAd(
       transmission: formData.transmission,
       features: formData.features || [],
       location: formData.location,
-      images: imageUrls,
+      images: imageUrls.length > 0 ? imageUrls : ["/placeholder.svg?height=400&width=600"],
       status: "active",
       views: 0,
       specifications: {
@@ -96,7 +92,7 @@ export async function createCarAd(
     await newAd.save()
     console.log("Car ad created successfully:", newAd._id)
 
-    return { success: true, adId: newAd._id }
+    return { success: true, adId: newAd._id.toString() }
   } catch (error) {
     console.error("Create car ad error:", error)
     return { success: false, error: "An error occurred while creating your ad" }
@@ -299,7 +295,7 @@ export async function getFeaturedCarAds() {
       location: ad.location,
       year: ad.year,
       mileage: ad.mileage,
-      image: ad.images[0] || "/placeholder.svg?height=200&width=300",
+      image: ad.images && ad.images.length > 0 ? ad.images[0] : "/placeholder.svg?height=200&width=300",
       featured: true,
     }))
   } catch (error) {
@@ -381,7 +377,7 @@ export async function searchCarAds(params: { [key: string]: string | string[] | 
       location: ad.location,
       year: ad.year,
       mileage: ad.mileage,
-      image: ad.images[0] || "/placeholder.svg?height=200&width=300",
+      image: ad.images && ad.images.length > 0 ? ad.images[0] : "/placeholder.svg?height=200&width=300",
       featured: false,
     }))
   } catch (error) {
@@ -432,7 +428,7 @@ export async function getSimilarCarAds(carId: string) {
       title: car.title,
       price: car.price,
       location: car.location,
-      image: car.images[0] || "/placeholder.svg?height=150&width=250",
+      image: car.images && car.images.length > 0 ? car.images[0] : "/placeholder.svg?height=150&width=250",
     }))
   } catch (error) {
     console.error("Get similar car ads error:", error)
@@ -580,13 +576,13 @@ export async function getUserFavorites(userId: string) {
       .map((fav) => {
         const car = fav.carAdId as any
         return {
-          id: car._id,
+          id: car._id.toString(),
           title: car.title,
           price: car.price,
           location: car.location,
           year: car.year,
           mileage: car.mileage,
-          image: car.images[0] || "/placeholder.svg?height=200&width=300",
+          image: car.images && car.images.length > 0 ? car.images[0] : "/placeholder.svg?height=200&width=300",
         }
       })
   } catch (error) {

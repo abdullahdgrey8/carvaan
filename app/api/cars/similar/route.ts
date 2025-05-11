@@ -44,7 +44,7 @@ export async function GET(request: Request) {
       title: car.title,
       price: car.price,
       location: car.location,
-      image: car.images[0] || "/placeholder.svg?height=150&width=250",
+      image: car.images && car.images.length > 0 ? car.images[0] : "/placeholder.svg?height=150&width=250",
     }))
 
     console.log(`Found ${formattedSimilarCars.length} similar car ads`)

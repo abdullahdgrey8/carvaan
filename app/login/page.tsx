@@ -2,12 +2,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { CheckCircle2 } from "lucide-react"
 import LoginForm from "./login-form"
 
-export default function LoginPage({
+export default async function LoginPage({
   searchParams,
 }: {
   searchParams: { registered?: string; reset?: string; redirect?: string }
 }) {
-  // Convert searchParams to regular values without using await
+  // Convert searchParams to regular values
   const showRegisteredMessage = searchParams?.registered === "true"
   const showResetMessage = searchParams?.reset === "true"
   const redirectPath = searchParams?.redirect || "/"

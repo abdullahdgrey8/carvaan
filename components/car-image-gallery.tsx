@@ -36,6 +36,7 @@ export function CarImageGallery({ images }: CarImageGalleryProps) {
             fill
             className="object-cover"
             priority
+            unoptimized={images[currentImageIndex]?.startsWith("http")}
           />
 
           <Button
@@ -83,6 +84,7 @@ export function CarImageGallery({ images }: CarImageGalleryProps) {
                 alt={`Car thumbnail ${index + 1}`}
                 fill
                 className="object-cover"
+                unoptimized={image?.startsWith("http")}
               />
             </button>
           ))}
@@ -97,6 +99,7 @@ export function CarImageGallery({ images }: CarImageGalleryProps) {
               alt={`Car image ${currentImageIndex + 1}`}
               fill
               className="object-contain"
+              unoptimized={images[currentImageIndex]?.startsWith("http")}
             />
 
             <Button
