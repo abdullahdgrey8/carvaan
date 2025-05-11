@@ -83,7 +83,13 @@ export function UserAds({ userId }: UserAdsProps) {
       {userAds.map((ad) => (
         <div key={ad.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 border rounded-lg">
           <div className="relative h-20 w-32 flex-shrink-0">
-            <Image src={ad.image || "/placeholder.svg"} alt={ad.title} fill className="object-cover rounded-md" />
+            <Image
+              src={ad.image || "/placeholder.svg"}
+              alt={ad.title}
+              fill
+              className="object-cover rounded-md"
+              unoptimized={ad.image?.startsWith("http")}
+            />
           </div>
 
           <div className="flex-grow">

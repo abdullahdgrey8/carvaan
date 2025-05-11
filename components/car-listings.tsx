@@ -189,7 +189,13 @@ export function CarListings({ onCountChange }: CarListingsProps) {
           <div className="relative">
             <Link href={`/car/${car.id}`}>
               <div className="relative h-48 w-full">
-                <Image src={car.image || "/placeholder.svg"} alt={car.title} fill className="object-cover" />
+                <Image
+                  src={car.image || "/placeholder.svg?height=400&width=600"}
+                  alt={car.title}
+                  fill
+                  className="object-cover"
+                  unoptimized={car.image?.startsWith("http")}
+                />
               </div>
             </Link>
             {car.featured && <Badge className="absolute top-2 right-2 bg-blue-600">Featured</Badge>}

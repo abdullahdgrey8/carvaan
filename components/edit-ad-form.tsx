@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { z } from "zod"
 import { Button } from "@/components/ui/button"
@@ -12,8 +12,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle, Loader2, Upload, X, Info } from "lucide-react"
-import { createCarAd } from "@/lib/car-ads"
+import { AlertCircle, Loader2, Info } from "lucide-react"
+import { updateCarAd } from "@/lib/car-ads"
 import { Checkbox } from "@/components/ui/checkbox"
 import Image from "next/image"
 
@@ -101,7 +101,11 @@ const featureOptions = [
   "Tow Package",
 ]
 
-export function PostAdForm() {
+interface EditAdFormProps {
+  carData: any
+}
+
+export function EditAdForm({ carData }: EditAdFormProps) {
   const router = useRouter()
   const [formData, setFormData] = useState<CarAdFormData>({
     title: "",
@@ -122,15 +126,36 @@ export function PostAdForm() {
     doors: "",
     condition: "",
   })
-  const [images, setImages] = useState<File[]>([])
-  const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([])
-  const [cloudinaryUrls, setCloudinaryUrls] = useState<string[]>([])
-  const [uploadProgress, setUploadProgress] = useState<number[]>([])
   const [errors, setErrors] = useState<Partial<Record<keyof CarAdFormData, string>>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isUploading, setIsUploading] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([])
+
+  // Initialize form data from carData
+  useEffect(() => {
+    if (carData) {
+      setFormData({
+        title: carData.title || "",
+        make: carData.make || "",
+        model: carData.model || "",
+        year: carData.year?.toString() || currentYear.toString(),
+        price: carData.price?.toString() || "",
+        mileage: carData.mileage?.toString() || "",
+        description: carData.description || "",
+        bodyType: carData.bodyType || "",
+        fuelType: carData.fuelType || "",
+        transmission: carData.transmission || "",
+        features: carData.features || [],
+        location: carData.location || "",
+        exteriorColor: carData.specifications?.exteriorColor || "",
+        interiorColor: carData.specifications?.interiorColor || "",
+        vin: carData.specifications?.vin || "",
+        doors: carData.specifications?.doors || "",
+        condition: carData.specifications?.condition || "",
+      })
+      setSelectedFeatures(carData.features || [])
+    }
+  }, [carData])
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { name: string; value: string },
@@ -157,93 +182,6 @@ export function PostAdForm() {
     }
   }
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const newFiles = Array.from(e.target.files)
-
-      // Limit to 10 images
-      if (images.length + newFiles.length > 10) {
-        alert("You can upload a maximum of 10 images")
-        return
-      }
-
-      setImages((prev) => [...prev, ...newFiles])
-
-      // Create preview URLs
-      const newPreviewUrls = newFiles.map((file) => URL.createObjectURL(file))
-      setImagePreviewUrls((prev) => [...prev, ...newPreviewUrls])
-
-      // Initialize upload progress for new files
-      setUploadProgress((prev) => [...prev, ...Array(newFiles.length).fill(0)])
-    }
-  }
-
-  const uploadImage = async (file: File, index: number) => {
-    try {
-      const formData = new FormData()
-      formData.append("file", file)
-
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        // Update progress to 100%
-        setUploadProgress((prev) => {
-          const newProgress = [...prev]
-          newProgress[index] = 100
-          return newProgress
-        })
-
-        return data.url
-      } else {
-        throw new Error(data.error || "Upload failed")
-      }
-    } catch (error) {
-      console.error("Error uploading image:", error)
-      throw error
-    }
-  }
-
-  const uploadAllImages = async () => {
-    if (images.length === 0) {
-      return []
-    }
-
-    setIsUploading(true)
-    const urls: string[] = []
-
-    try {
-      // Upload images one by one
-      for (let i = 0; i < images.length; i++) {
-        const url = await uploadImage(images[i], i)
-        urls.push(url)
-      }
-
-      setCloudinaryUrls(urls)
-      return urls
-    } catch (error) {
-      console.error("Error uploading images:", error)
-      setServerError("An error occurred while uploading images. Please try again.")
-      throw error
-    } finally {
-      setIsUploading(false)
-    }
-  }
-
-  const removeImage = (index: number) => {
-    // Revoke the object URL to avoid memory leaks
-    URL.revokeObjectURL(imagePreviewUrls[index])
-
-    setImages((prev) => prev.filter((_, i) => i !== index))
-    setImagePreviewUrls((prev) => prev.filter((_, i) => i !== index))
-    setUploadProgress((prev) => prev.filter((_, i) => i !== index))
-    setCloudinaryUrls((prev) => prev.filter((_, i) => i !== index))
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setServerError(null)
@@ -252,26 +190,16 @@ export function PostAdForm() {
       // Validate form data
       const validatedData = carAdSchema.parse(formData)
       setErrors({})
-
-      // Check if at least one image is uploaded
-      if (images.length === 0) {
-        setServerError("Please upload at least one image of your car")
-        return
-      }
-
       setIsSubmitting(true)
 
-      // Upload images to Cloudinary
-      const imageUrls = await uploadAllImages()
-
-      // Call create car ad function with Cloudinary URLs
-      const result = await createCarAd(validatedData, imageUrls)
+      // Call update car ad function
+      const result = await updateCarAd(carData.id, validatedData)
 
       if (result.success) {
-        // Redirect to the newly created car ad page
-        router.push(`/car/${result.adId}`)
+        // Redirect to the car ad page
+        router.push(`/car/${carData.id}`)
       } else {
-        setServerError(result.error || "An error occurred while creating your ad")
+        setServerError(result.error || "An error occurred while updating your ad")
       }
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -305,7 +233,7 @@ export function PostAdForm() {
       <Card>
         <CardHeader>
           <CardTitle>Car Details</CardTitle>
-          <CardDescription>Enter the basic information about your car</CardDescription>
+          <CardDescription>Edit the basic information about your car</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">
@@ -494,7 +422,7 @@ export function PostAdForm() {
       <Card>
         <CardHeader>
           <CardTitle>Additional Specifications</CardTitle>
-          <CardDescription>Provide more details about your car</CardDescription>
+          <CardDescription>Edit more details about your car</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -596,84 +524,51 @@ export function PostAdForm() {
       <Card>
         <CardHeader>
           <CardTitle>Car Images</CardTitle>
-          <CardDescription>Upload up to 10 high-quality images of your car</CardDescription>
+          <CardDescription>Current images of your car</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              {imagePreviewUrls.map((url, index) => (
-                <div key={index} className="relative aspect-square rounded-md overflow-hidden border">
-                  <Image
-                    src={url || "/placeholder.svg"}
-                    alt={`Car preview ${index + 1}`}
-                    fill
-                    className="object-cover"
-                  />
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="icon"
-                    className="absolute top-1 right-1 h-6 w-6 rounded-full"
-                    onClick={() => removeImage(index)}
-                    disabled={isUploading || isSubmitting}
-                  >
-                    <X className="h-3 w-3" />
-                    <span className="sr-only">Remove image</span>
-                  </Button>
-                  {index === 0 && (
-                    <div className="absolute bottom-0 left-0 right-0 bg-blue-600 text-white text-xs py-1 text-center">
-                      Main Image
-                    </div>
-                  )}
-                  {uploadProgress[index] > 0 && uploadProgress[index] < 100 && (
-                    <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50">
-                      <div className="bg-blue-600 h-1" style={{ width: `${uploadProgress[index]}%` }}></div>
-                    </div>
-                  )}
-                </div>
-              ))}
-
-              {imagePreviewUrls.length < 10 && (
-                <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-md aspect-square cursor-pointer hover:bg-gray-50">
-                  <div className="flex flex-col items-center justify-center p-4">
-                    <Upload className="h-8 w-8 text-gray-400 mb-2" />
-                    <p className="text-sm text-gray-500">Upload Image</p>
+              {carData.images && carData.images.length > 0 ? (
+                carData.images.map((image: string, index: number) => (
+                  <div key={index} className="relative aspect-square rounded-md overflow-hidden border">
+                    <Image
+                      src={image || "/placeholder.svg"}
+                      alt={`Car image ${index + 1}`}
+                      fill
+                      className="object-cover"
+                      unoptimized={image?.startsWith("http")}
+                    />
+                    {index === 0 && (
+                      <div className="absolute bottom-0 left-0 right-0 bg-blue-600 text-white text-xs py-1 text-center">
+                        Main Image
+                      </div>
+                    )}
                   </div>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleImageChange}
-                    disabled={isUploading || isSubmitting}
-                  />
-                </label>
+                ))
+              ) : (
+                <p className="text-gray-500 col-span-full">No images available</p>
               )}
             </div>
 
             <div className="flex items-center text-sm text-gray-500">
               <Info className="h-4 w-4 mr-2" />
               <p>
-                Tips: The first image will be used as the main image. Upload clear images from different angles
-                (exterior front, back, sides, interior, dashboard). Good photos increase interest in your ad.
+                Note: To change images, please create a new ad. Image editing is not supported in the current version.
               </p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <Button type="submit" className="w-full" size="lg" disabled={isSubmitting || isUploading}>
+      <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
         {isSubmitting ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Creating Ad...
-          </>
-        ) : isUploading ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Uploading Images...
+            Updating Ad...
           </>
         ) : (
-          "Post Ad"
+          "Update Ad"
         )}
       </Button>
     </form>

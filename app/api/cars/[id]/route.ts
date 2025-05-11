@@ -76,6 +76,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
         vin: "Not specified",
         doors: "4",
         condition: "Good",
+        ...carAd.specifications,
       },
     }
 
@@ -91,6 +92,10 @@ export async function PUT(request: Request, { params }: { params: { id: string }
   try {
     const id = params.id
     const { userId, ...updateData } = await request.json()
+
+    if (!userId) {
+      return NextResponse.json({ success: false, error: "User ID is required" }, { status: 400 })
+    }
 
     // Connect to MongoDB
     await connectToDatabase()

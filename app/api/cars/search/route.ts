@@ -86,8 +86,9 @@ export async function GET(request: Request) {
       location: ad.location,
       year: ad.year,
       mileage: ad.mileage,
-      image: ad.images[0] || "/placeholder.svg?height=200&width=300",
+      image: ad.images && ad.images.length > 0 ? ad.images[0] : "/placeholder.svg?height=200&width=300",
       featured: false,
+      createdAt: ad.createdAt,
     }))
 
     console.log(`Search returned ${formattedAds.length} car ads`)

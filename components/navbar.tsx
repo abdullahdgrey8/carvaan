@@ -83,7 +83,7 @@ export default function Navbar() {
                 href="/post-ad"
                 className={`px-3 py-2 rounded-md ${pathname === "/post-ad" ? "text-blue-600 font-medium" : "text-gray-700 hover:text-blue-600"}`}
               >
-                Post Ad
+                Sell Your Car
               </Link>
             )}
           </div>
@@ -164,7 +164,7 @@ export default function Navbar() {
                 className={`block px-3 py-2 rounded-md ${pathname === "/post-ad" ? "bg-blue-50 text-blue-600 font-medium" : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"}`}
                 onClick={() => setIsMenuOpen(false)}
               >
-                Post Ad
+                Sell Your Car
               </Link>
             )}
 

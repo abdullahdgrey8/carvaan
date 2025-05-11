@@ -78,7 +78,8 @@ export async function login(formData: { email: string; password: string }) {
     expiresAt.setDate(expiresAt.getDate() + 7) // 7 days from now
 
     // Set session cookie - use cookies() directly
-    cookies().set({
+    const cookieStore = cookies()
+    await cookieStore.set({
       name: "sessionId",
       value: sessionId,
       httpOnly: true,
@@ -89,7 +90,7 @@ export async function login(formData: { email: string; password: string }) {
     })
 
     // Store user ID in another cookie for client-side access
-    cookies().set({
+    await cookieStore.set({
       name: "userId",
       value: user._id.toString(),
       httpOnly: false,
@@ -100,7 +101,7 @@ export async function login(formData: { email: string; password: string }) {
     })
 
     // Store user name in another cookie for client-side access
-    cookies().set({
+    await cookieStore.set({
       name: "userName",
       value: user.fullName,
       httpOnly: false,
@@ -131,21 +132,22 @@ export async function logout() {
   try {
     console.log("Logout attempt")
     // Delete cookies - use cookies() directly
-    cookies().set({
+    const cookieStore = cookies()
+    await cookieStore.set({
       name: "sessionId",
       value: "",
       expires: new Date(0),
       path: "/",
     })
 
-    cookies().set({
+    await cookieStore.set({
       name: "userId",
       value: "",
       expires: new Date(0),
       path: "/",
     })
 
-    cookies().set({
+    await cookieStore.set({
       name: "userName",
       value: "",
       expires: new Date(0),
@@ -163,8 +165,9 @@ export async function logout() {
 // Get user session
 export async function getUserSession() {
   try {
-    const sessionId = cookies().get("sessionId")?.value
-    const userId = cookies().get("userId")?.value
+    const cookieStore = cookies()
+    const sessionId = cookieStore.get("sessionId")?.value
+    const userId = cookieStore.get("userId")?.value
 
     if (!sessionId || !userId) {
       return null
