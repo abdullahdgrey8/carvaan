@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { connectToDatabase } from "@/lib/mongodb"
 import User from "@/models/User"
 import CarAd from "@/models/CarAd"
+import { DatabaseStatus } from "@/components/database-status"
 
 export default async function AdminPage() {
   let userCount = 0
@@ -38,10 +39,13 @@ export default async function AdminPage() {
           <Button asChild variant="outline">
             <Link href="/api/init">Initialize Database</Link>
           </Button>
+          <Button asChild variant="outline">
+            <Link href="/api/postgres/setup">Setup PostgreSQL</Link>
+          </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <Card>
           <CardHeader>
             <CardTitle>Users</CardTitle>
@@ -71,6 +75,25 @@ export default async function AdminPage() {
             </Button>
           </CardFooter>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Analytics</CardTitle>
+            <CardDescription>View site analytics and trends</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">
+              <span className="text-blue-600">📊</span>
+            </p>
+          </CardContent>
+          <CardFooter>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/admin/analytics">View Analytics</Link>
+            </Button>
+          </CardFooter>
+        </Card>
+
+        <DatabaseStatus />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

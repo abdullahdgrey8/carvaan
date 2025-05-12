@@ -2,10 +2,39 @@ import { NextResponse } from "next/server"
 import { connectToDatabase } from "@/lib/mongodb"
 import CarAd from "@/models/CarAd"
 import User from "@/models/User"
+import { getCachedCarDetails, setCachedCarDetails, invalidateCarCache } from "@/lib/cache"
+import { incrementCarView } from "@/lib/analytics"
+import { syncCarToPostgres, deleteCarFromPostgres } from "@/lib/sync-service"
+import { logCarView } from "@/lib/view-analytics-service"
+import { headers } from "next/headers"
 
 export async function GET(request: Request, { params }: { params: { id: string } }) {
   try {
     const id = params.id
+    const headersList = headers()
+    const userAgent = headersList.get("user-agent") || ""
+    const referer = headersList.get("referer") || ""
+
+    // Get device type from user agent
+    const deviceType = userAgent.includes("Mobile") ? "mobile" : "desktop"
+
+    // Try to get from cache first
+    const cachedCarAd = await getCachedCarDetails(id)
+    if (cachedCarAd) {
+      console.log("Car ad retrieved from cache:", id)
+
+      // Increment view count in the background
+      incrementCarView(id).catch((error) => {
+        console.error("Error incrementing view count:", error)
+      })
+
+      // Log view in PostgreSQL for analytics
+      logCarView(id, null, null, deviceType, referer).catch((error) => {
+        console.error("Error logging car view:", error)
+      })
+
+      return NextResponse.json({ success: true, carAd: cachedCarAd, fromCache: true })
+    }
 
     // Connect to MongoDB
     await connectToDatabase()
@@ -18,9 +47,24 @@ export async function GET(request: Request, { params }: { params: { id: string }
       return NextResponse.json({ success: false, error: "Car ad not found" }, { status: 404 })
     }
 
-    // Increment views
+    // Increment views in MongoDB
     carAd.views += 1
     await carAd.save()
+
+    // Also increment in Redis for real-time analytics
+    incrementCarView(id).catch((error) => {
+      console.error("Error incrementing view count:", error)
+    })
+
+    // Log view in PostgreSQL for analytics
+    logCarView(id, null, null, deviceType, referer).catch((error) => {
+      console.error("Error logging car view:", error)
+    })
+
+    // Sync car to PostgreSQL in the background
+    syncCarToPostgres(id).catch((error) => {
+      console.error("Error syncing car to PostgreSQL:", error)
+    })
 
     // Get seller info
     const user = await User.findById(carAd.userId)
@@ -80,7 +124,10 @@ export async function GET(request: Request, { params }: { params: { id: string }
       },
     }
 
-    console.log("Car ad fetched successfully:", id)
+    // Cache the formatted ad
+    await setCachedCarDetails(id, formattedAd)
+    console.log("Car ad cached:", id)
+
     return NextResponse.json({ success: true, carAd: formattedAd })
   } catch (error) {
     console.error("Get car ad error:", error)
@@ -120,7 +167,15 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     // Update car ad
     const updatedCarAd = await CarAd.findByIdAndUpdate(id, updateData, { new: true })
 
-    console.log("Car ad updated successfully:", id)
+    // Invalidate cache
+    await invalidateCarCache(id)
+    console.log("Car ad cache invalidated:", id)
+
+    // Sync updated car to PostgreSQL
+    syncCarToPostgres(id).catch((error) => {
+      console.error("Error syncing updated car to PostgreSQL:", error)
+    })
+
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error("Update car ad error:", error)
@@ -161,7 +216,15 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     // Delete car ad
     await CarAd.findByIdAndDelete(id)
 
-    console.log("Car ad deleted successfully:", id)
+    // Invalidate cache
+    await invalidateCarCache(id)
+    console.log("Car ad cache invalidated:", id)
+
+    // Delete car from PostgreSQL
+    deleteCarFromPostgres(id).catch((error) => {
+      console.error("Error deleting car from PostgreSQL:", error)
+    })
+
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error("Delete car ad error:", error)
