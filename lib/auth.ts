@@ -3,10 +3,10 @@
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import bcrypt from "bcryptjs"
-import { v4 as uuidv4 } from "uuid"
 import { connectToDatabase } from "./mongodb"
 import User from "@/models/User"
 import mongoose from "mongoose"
+import { createSession, deleteSession, getCurrentSession } from "./session"
 
 // Signup function
 export async function signup(formData: {
@@ -72,13 +72,18 @@ export async function login(formData: { email: string; password: string }) {
       return { success: false, error: "Invalid email or password" }
     }
 
-    // Create session
-    const sessionId = uuidv4()
+    // Create session in Redis
+    const sessionId = await createSession({
+      userId: user._id.toString(),
+      fullName: user.fullName,
+      email: user.email,
+    })
+
+    // Set session cookie
+    const cookieStore = cookies()
     const expiresAt = new Date()
     expiresAt.setDate(expiresAt.getDate() + 7) // 7 days from now
 
-    // Set session cookie - use cookies() directly
-    const cookieStore = cookies()
     await cookieStore.set({
       name: "sessionId",
       value: sessionId,
@@ -131,8 +136,17 @@ export async function login(formData: { email: string; password: string }) {
 export async function logout() {
   try {
     console.log("Logout attempt")
-    // Delete cookies - use cookies() directly
+
+    // Get session ID from cookies
     const cookieStore = cookies()
+    const sessionId = cookieStore.get("sessionId")?.value
+
+    // Delete session from Redis if it exists
+    if (sessionId) {
+      await deleteSession(sessionId)
+    }
+
+    // Delete cookies
     await cookieStore.set({
       name: "sessionId",
       value: "",
@@ -165,15 +179,12 @@ export async function logout() {
 // Get user session
 export async function getUserSession() {
   try {
-    const cookieStore = cookies()
-    const sessionId = cookieStore.get("sessionId")?.value
-    const userId = cookieStore.get("userId")?.value
-
-    if (!sessionId || !userId) {
+    const session = await getCurrentSession()
+    if (!session) {
       return null
     }
 
-    return { userId }
+    return { userId: session.userId }
   } catch (error) {
     console.error("Get user session error:", error)
     return null

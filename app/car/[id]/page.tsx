@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -14,6 +14,7 @@ import { SellerContactCard } from "@/components/seller-contact-card"
 import { CarFeaturesList } from "@/components/car-features-list"
 import { MapLocation } from "@/components/map-location"
 import { SimilarCars } from "@/components/similar-cars"
+import { PriceHistoryChart } from "@/components/price-history-chart"
 import { Separator } from "@/components/ui/separator"
 import { Check, Heart, Info, Loader2, Mail } from "lucide-react"
 import {
@@ -46,6 +47,32 @@ export default function CarDetailsPage() {
   const [isSubmittingContact, setIsSubmittingContact] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
+  const [fromCache, setFromCache] = useState(false)
+
+  const searchParams = useSearchParams()
+  const compareParam = searchParams.get("compare")
+  const compareIds = compareParam ? compareParam.split(",") : []
+  const isInCompare = compareIds.includes(params.id as string)
+
+  const handleCompare = () => {
+    if (isInCompare) {
+      // Remove from comparison
+      const newCompareIds = compareIds.filter((id) => id !== params.id)
+      if (newCompareIds.length === 0) {
+        router.push(`/car/${params.id}`)
+      } else {
+        router.push(`/car/${params.id}?compare=${newCompareIds.join(",")}`)
+      }
+    } else {
+      // Add to comparison
+      const newCompareIds = [...compareIds, params.id]
+      router.push(`/car/${params.id}?compare=${newCompareIds.join(",")}`)
+    }
+  }
+
+  const goToComparison = () => {
+    router.push(`/compare?carIds=${compareIds.join(",")}`)
+  }
 
   useEffect(() => {
     const checkSession = () => {
@@ -77,6 +104,7 @@ export default function CarDetailsPage() {
         }
 
         setCar(data.carAd)
+        setFromCache(data.fromCache === true)
 
         // Check if car is in favorites if logged in
         if (isLoggedIn && userId) {
@@ -225,6 +253,14 @@ export default function CarDetailsPage() {
           <span className="text-gray-500">{car.mileage?.toLocaleString()} miles</span>
           <span className="mx-2 text-gray-300">•</span>
           <span className="text-gray-500">{car.location}</span>
+          {fromCache && (
+            <>
+              <span className="mx-2 text-gray-300">•</span>
+              <Badge variant="outline" className="bg-green-50 text-green-700">
+                Cached
+              </Badge>
+            </>
+          )}
         </div>
       </div>
 
@@ -235,10 +271,11 @@ export default function CarDetailsPage() {
 
           {/* Car Details Tabs */}
           <Tabs defaultValue="overview" className="mt-8">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="features">Features</TabsTrigger>
               <TabsTrigger value="specifications">Specifications</TabsTrigger>
+              <TabsTrigger value="price-history">Price History</TabsTrigger>
             </TabsList>
             <TabsContent value="overview" className="mt-4">
               <Card>
@@ -270,6 +307,9 @@ export default function CarDetailsPage() {
                   </div>
                 </CardContent>
               </Card>
+            </TabsContent>
+            <TabsContent value="price-history" className="mt-4">
+              <PriceHistoryChart make={car.make} model={car.model} />
             </TabsContent>
           </Tabs>
 
@@ -310,6 +350,15 @@ export default function CarDetailsPage() {
                     )}
                     {isFavorite ? "Saved to Favorites" : "Save to Favorites"}
                   </Button>
+                  <Button variant={isInCompare ? "default" : "outline"} className="w-full" onClick={handleCompare}>
+                    {isInCompare ? "Remove from Comparison" : "Add to Comparison"}
+                  </Button>
+
+                  {compareIds.length > 1 && (
+                    <Button variant="outline" className="w-full" onClick={goToComparison}>
+                      Compare {compareIds.length} Cars
+                    </Button>
+                  )}
                 </div>
 
                 <Separator className="my-4" />

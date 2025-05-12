@@ -1,8 +1,9 @@
-import { Button } from "@/components/ui/button";
-import { FeaturedCars } from "@/components/featured-cars";
-import { CategoryBrowser } from "@/components/category-browser";
-import { SearchBar } from "@/components/search-bar";
-import Link from "next/link";
+import { Button } from "@/components/ui/button"
+import { FeaturedCars } from "@/components/featured-cars"
+import { PopularCars } from "@/components/popular-cars"
+import { CategoryBrowser } from "@/components/category-browser"
+import { SearchBar } from "@/components/search-bar"
+import Link from "next/link"
 
 export default function Home() {
   return (
@@ -11,27 +12,15 @@ export default function Home() {
       <section className="relative rounded-lg overflow-hidden mb-12">
         <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-8 md:p-16 rounded-lg">
           <div className="max-w-2xl">
-            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-              Find Your Perfect Car Today
-            </h1>
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">Find Your Perfect Car Today</h1>
             <p className="text-xl text-blue-100 mb-8">
-              Browse thousands of listings from verified sellers across the
-              country
+              Browse thousands of listings from verified sellers across the country
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button
-                asChild
-                size="lg"
-                className="bg-white text-blue-700 hover:bg-blue-50"
-              >
+              <Button asChild size="lg" className="bg-white text-blue-700 hover:bg-blue-50">
                 <Link href="/browse">Browse Cars</Link>
               </Button>
-              <Button
-                asChild
-                variant="outline"
-                size="lg"
-                className="bg-white text-blue-700 hover:bg-blue-50"
-              >
+              <Button asChild variant="outline" size="lg" className="text-white border-white hover:bg-blue-700/50">
                 <Link href="/post-ad">Sell Your Car</Link>
               </Button>
             </div>
@@ -55,6 +44,12 @@ export default function Home() {
         <h2 className="text-2xl font-bold mb-6">Featured Cars</h2>
         <FeaturedCars />
       </section>
+
+      {/* Popular Cars Section */}
+      <section className="mb-12">
+        <h2 className="text-2xl font-bold mb-6">Most Viewed Cars</h2>
+        <PopularCars />
+      </section>
     </div>
-  );
+  )
 }

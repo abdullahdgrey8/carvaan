@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server"
 import { connectToDatabase } from "@/lib/mongodb"
 import CarAd from "@/models/CarAd"
+import { trackUserSearch } from "@/lib/analytics"
+import { cookies } from "next/headers"
+import { logSearch } from "@/lib/search-analytics-service"
 
 export async function GET(request: Request) {
   try {
@@ -90,6 +93,38 @@ export async function GET(request: Request) {
       featured: false,
       createdAt: ad.createdAt,
     }))
+
+    // Track search if query exists
+    if (query || make || category || minPrice || maxPrice || minYear || maxYear || makes || bodyTypes || fuelTypes) {
+      // Get user ID from cookies
+      const cookieStore = cookies()
+      const userId = cookieStore.get("userId")?.value
+
+      // Collect filters for analytics
+      const filters = {
+        make,
+        category,
+        minPrice,
+        maxPrice,
+        minYear,
+        maxYear,
+        makes,
+        bodyTypes,
+        fuelTypes,
+      }
+
+      // Track search in Redis
+      if (userId && query) {
+        trackUserSearch(userId, query).catch((error) => {
+          console.error("Error tracking search in Redis:", error)
+        })
+      }
+
+      // Log search in PostgreSQL
+      logSearch(query || "", userId || null, filters, formattedAds.length).catch((error) => {
+        console.error("Error logging search in PostgreSQL:", error)
+      })
+    }
 
     console.log(`Search returned ${formattedAds.length} car ads`)
     return NextResponse.json({ success: true, carAds: formattedAds })
