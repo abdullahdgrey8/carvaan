@@ -5,7 +5,7 @@ import CarAd from "@/models/CarAd"
 import User from "@/models/User"
 import Favorite from "@/models/Favorite"
 import mongoose from "mongoose"
-import { getUserSession } from "./auth"
+import { getUserSession } from "@/models/User"
 
 // Create car ad
 export async function createCarAd(

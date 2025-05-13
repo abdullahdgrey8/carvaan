@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
-import { getCarSpecsForComparison, logCarComparison } from "@/lib/comparison-service"
 import { cookies } from "next/headers"
+import { connectToDatabase } from "@/lib/mongodb"
+import CarAd from "@/models/CarAd"
+import { ObjectId } from "mongodb"
 
 export async function GET(request: Request) {
   try {
@@ -11,23 +13,75 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, error: "Car IDs are required" }, { status: 400 })
     }
 
-    const carIdArray = carIds.split(",")
+    const carIdArray = carIds.split(",").filter((id) => id.trim() !== "")
 
-    // Get car specs for comparison
-    const specs = await getCarSpecsForComparison(carIdArray)
+    if (carIdArray.length === 0) {
+      return NextResponse.json({ success: false, error: "No valid car IDs provided" }, { status: 400 })
+    }
 
-    if (specs.length === 0) {
+    console.log("Comparing cars with IDs:", carIdArray)
+
+    // Connect to MongoDB to get car details
+    await connectToDatabase()
+
+    // Find cars by IDs
+    const cars = await CarAd.find({
+      _id: {
+        $in: carIdArray
+          .map((id) => {
+            try {
+              return new ObjectId(id)
+            } catch (e) {
+              console.error(`Invalid ObjectId: ${id}`)
+              return null
+            }
+          })
+          .filter(Boolean),
+      },
+    })
+
+    if (cars.length === 0) {
       return NextResponse.json({ success: false, error: "No cars found for comparison" }, { status: 404 })
     }
 
-    // Get user ID from cookies
+    console.log(`Found ${cars.length} cars for comparison`)
+
+    // Format cars for comparison
+    const specs = cars.map((car) => ({
+      carId: car._id.toString(),
+      make: car.make,
+      model: car.model,
+      year: car.year,
+      price: car.price,
+      mileage: car.mileage,
+      bodyType: car.bodyType,
+      fuelType: car.fuelType,
+      transmission: car.transmission,
+      engineSize: car.specifications?.engineSize || null,
+      horsepower: car.specifications?.horsepower || null,
+      torque: car.specifications?.torque || null,
+      fuelEconomy: car.specifications?.fuelEconomy || null,
+      doors: car.specifications?.doors || null,
+      seats: car.specifications?.seats || null,
+      color: car.specifications?.exteriorColor || null,
+      interiorColor: car.specifications?.interiorColor || null,
+    }))
+
+    // Get user ID from cookies - properly awaited
     const cookieStore = cookies()
-    const userId = cookieStore.get("userId")?.value
+    // Use a try-catch to handle any potential errors with cookies
+    let userId = "anonymous"
+    try {
+      const userIdCookie = cookieStore.get("userId")
+      if (userIdCookie) {
+        userId = userIdCookie.value
+      }
+    } catch (error) {
+      console.error("Error getting userId from cookies:", error)
+    }
 
     // Log comparison
-    logCarComparison(userId || null, carIdArray).catch((error) => {
-      console.error("Error logging car comparison:", error)
-    })
+    console.log(`User ${userId} compared cars: ${carIdArray.join(", ")}`)
 
     return NextResponse.json({ success: true, specs })
   } catch (error) {

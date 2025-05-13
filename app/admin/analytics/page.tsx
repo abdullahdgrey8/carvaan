@@ -10,8 +10,12 @@ import { PriceHistoryChart } from "@/components/price-history-chart"
 import { checkPostgresConnection } from "@/lib/postgres"
 import { sql } from "@/lib/postgres"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { requireAdmin } from "@/lib/admin-auth"
 
 export default async function AdminAnalyticsPage() {
+  // Check if user is admin
+  await requireAdmin()
+
   let userCount = 0
   let carAdCount = 0
   let totalViews = 0

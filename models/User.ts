@@ -1,3 +1,4 @@
+import { getCurrentSession } from "@/lib/session"
 import mongoose, { Schema, type Document } from "mongoose"
 
 export interface IUser extends Document {
@@ -22,3 +23,19 @@ const UserSchema: Schema = new Schema(
 )
 
 export default mongoose.models.User || mongoose.model<IUser>("User", UserSchema)
+// Get user session
+
+export async function getUserSession() {
+  try {
+    const session = await getCurrentSession()
+    if (!session || typeof session !== "object") {
+      console.error("Invalid session data:", session)
+      return null
+    }
+
+    return { userId: session.userId }
+  } catch (error) {
+    console.error("Get user session error:", error)
+    return null
+  }
+}

@@ -4,9 +4,9 @@ import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import bcrypt from "bcryptjs"
 import { connectToDatabase } from "./mongodb"
-import User from "@/models/User"
+import User, { getUserSession } from "@/models/User"
 import mongoose from "mongoose"
-import { createSession, deleteSession, getCurrentSession } from "./session"
+import { createSession, deleteSession } from "./session"
 
 // Signup function
 export async function signup(formData: {
@@ -77,14 +77,15 @@ export async function login(formData: { email: string; password: string }) {
       userId: user._id.toString(),
       fullName: user.fullName,
       email: user.email,
+
     })
 
     // Set session cookie
-    const cookieStore = cookies()
+    const cookieStore = await cookies().then(store => store)
     const expiresAt = new Date()
     expiresAt.setDate(expiresAt.getDate() + 7) // 7 days from now
 
-    await cookieStore.set({
+    cookieStore.set({
       name: "sessionId",
       value: sessionId,
       httpOnly: true,
@@ -95,7 +96,7 @@ export async function login(formData: { email: string; password: string }) {
     })
 
     // Store user ID in another cookie for client-side access
-    await cookieStore.set({
+    cookieStore.set({
       name: "userId",
       value: user._id.toString(),
       httpOnly: false,
@@ -106,7 +107,7 @@ export async function login(formData: { email: string; password: string }) {
     })
 
     // Store user name in another cookie for client-side access
-    await cookieStore.set({
+    cookieStore.set({
       name: "userName",
       value: user.fullName,
       httpOnly: false,
@@ -173,21 +174,6 @@ export async function logout() {
   } catch (error) {
     console.error("Logout error:", error)
     return { success: false, error: "An error occurred during logout" }
-  }
-}
-
-// Get user session
-export async function getUserSession() {
-  try {
-    const session = await getCurrentSession()
-    if (!session) {
-      return null
-    }
-
-    return { userId: session.userId }
-  } catch (error) {
-    console.error("Get user session error:", error)
-    return null
   }
 }
 

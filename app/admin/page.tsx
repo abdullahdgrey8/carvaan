@@ -5,8 +5,12 @@ import { connectToDatabase } from "@/lib/mongodb"
 import User from "@/models/User"
 import CarAd from "@/models/CarAd"
 import { DatabaseStatus } from "@/components/database-status"
+import { requireAdmin } from "@/lib/admin-auth"
 
 export default async function AdminPage() {
+  // Check if user is admin
+  await requireAdmin()
+
   let userCount = 0
   let carAdCount = 0
   let recentUsers: any[] = []
