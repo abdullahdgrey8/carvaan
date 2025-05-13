@@ -1,80 +1,82 @@
-import { cookies } from "next/headers"
-import { v4 as uuidv4 } from "uuid"
-import redis, { CACHE_KEYS, CACHE_TTL, createCacheKey } from "./redis"
+import { cookies } from "next/headers";
+import { v4 as uuidv4 } from "uuid";
 
-// Session interface
+// Define the shape of a user session
 export interface UserSession {
-  userId: string
-  fullName: string
-  email: string
-  expiresAt: string
+  userId: string;
+  fullName: string;
+  email: string;
+  expiresAt: string;
 }
 
-// Create a new session
+// Create a new session and store it in an in-memory store
+const sessionStore = new Map<string, UserSession>();
+
 export async function createSession(userData: {
-  userId: string
-  fullName: string
-  email: string
+  userId: string;
+  fullName: string;
+  email: string;
 }): Promise<string> {
-  const sessionId = uuidv4()
-  const expiresAt = new Date()
-  expiresAt.setDate(expiresAt.getDate() + 7) // 7 days from now
+  const sessionId = uuidv4();
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 7); // Session valid for 7 days
 
   const session: UserSession = {
     ...userData,
     expiresAt: expiresAt.toISOString(),
-  }
+  };
 
-  // Store session in Redis
-  const sessionKey = createCacheKey(CACHE_KEYS.USER_SESSION, sessionId)
-  await redis.set(sessionKey, JSON.stringify(session), { ex: CACHE_TTL.USER_SESSION })
+  // Store in in-memory store
+  sessionStore.set(sessionId, session);
 
-  return sessionId
+  return sessionId;
 }
 
-// Get session data
+// Retrieve session data
 export async function getSession(sessionId: string): Promise<UserSession | null> {
   try {
-    const sessionKey = createCacheKey(CACHE_KEYS.USER_SESSION, sessionId)
-    const sessionData = await redis.get<string>(sessionKey)
+    // Check in in-memory store
+    const session = sessionStore.get(sessionId);
 
-    if (!sessionData) {
-      return null
+    if (session) {
+      // Optionally check for expiration
+      const now = new Date();
+      if (new Date(session.expiresAt) < now) {
+        sessionStore.delete(sessionId);
+        return null;
+      }
+      return session;
     }
 
-    const session = JSON.parse(sessionData) as UserSession
-
-    // Check if session has expired
-    if (new Date(session.expiresAt) < new Date()) {
-      await redis.del(sessionKey)
-      return null
-    }
-
-    return session
+    return null;
   } catch (error) {
-    console.error("Error getting session:", error)
-    return null
+    console.error("Error getting session:", error);
+    return null;
   }
 }
 
 // Delete session
 export async function deleteSession(sessionId: string): Promise<void> {
   try {
-    const sessionKey = createCacheKey(CACHE_KEYS.USER_SESSION, sessionId)
-    await redis.del(sessionKey)
+    // Delete from in-memory store
+    sessionStore.delete(sessionId);
   } catch (error) {
-    console.error("Error deleting session:", error)
+    console.error("Error deleting session:", error);
   }
 }
 
-// Get current session from cookies
+// Get current session using cookies
 export async function getCurrentSession(): Promise<UserSession | null> {
-  const cookieStore = cookies()
-  const sessionId = cookieStore.get("sessionId")?.value
+  try {
+    const cookieStore = await cookies();
+    const sessionId = cookieStore.get("sessionId")?.value;
 
-  if (!sessionId) {
-    return null
+    if (!sessionId) return null;
+
+    const session = await getSession(sessionId);
+    return session;
+  } catch (error) {
+    console.error("Error getting current session:", error);
+    return null;
   }
-
-  return getSession(sessionId)
 }

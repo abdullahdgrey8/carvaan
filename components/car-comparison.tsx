@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Loader2, X } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import Link from "next/link"
+import { useComparison } from "@/components/comparison-context"
 
 interface CarComparisonProps {
   carIds: string[]
@@ -17,11 +18,18 @@ export function CarComparison({ carIds }: CarComparisonProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
+  const { removeFromComparison } = useComparison()
 
   useEffect(() => {
     const fetchCarSpecs = async () => {
       try {
+        if (carIds.length === 0) {
+          setSpecs([])
+          return
+        }
+
         setIsLoading(true)
+        console.log("Fetching car specs for IDs:", carIds)
         const response = await fetch(`/api/compare?carIds=${carIds.join(",")}`)
 
         if (!response.ok) {
@@ -31,9 +39,11 @@ export function CarComparison({ carIds }: CarComparisonProps) {
         const data = await response.json()
 
         if (data.success) {
+          console.log("Received car specs:", data.specs)
           setSpecs(data.specs)
         } else {
           setError(data.error || "Failed to fetch car specs")
+          console.error("Failed to fetch car specs:", data.error)
         }
       } catch (error) {
         console.error("Error fetching car specs:", error)
@@ -43,12 +53,12 @@ export function CarComparison({ carIds }: CarComparisonProps) {
       }
     }
 
-    if (carIds.length > 0) {
-      fetchCarSpecs()
-    }
+    fetchCarSpecs()
   }, [carIds])
 
   const removeCarFromComparison = (carId: string) => {
+    removeFromComparison(carId)
+
     const newCarIds = carIds.filter((id) => id !== carId)
     if (newCarIds.length === 0) {
       router.push("/browse")

@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { useParams, useRouter, useSearchParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -29,6 +29,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { toast } from "@/hooks/use-toast"
+import { useComparison } from "@/components/comparison-context"
 
 export default function CarDetailsPage() {
   const params = useParams()
@@ -49,29 +50,41 @@ export default function CarDetailsPage() {
   const [userId, setUserId] = useState<string | null>(null)
   const [fromCache, setFromCache] = useState(false)
 
-  const searchParams = useSearchParams()
-  const compareParam = searchParams.get("compare")
-  const compareIds = compareParam ? compareParam.split(",") : []
-  const isInCompare = compareIds.includes(params.id as string)
+  const { comparedCarIds, addToComparison, removeFromComparison, isInComparison } = useComparison()
+  const carId = params.id as string
+  const isInCompare = isInComparison(carId)
 
   const handleCompare = () => {
     if (isInCompare) {
       // Remove from comparison
-      const newCompareIds = compareIds.filter((id) => id !== params.id)
-      if (newCompareIds.length === 0) {
-        router.push(`/car/${params.id}`)
-      } else {
-        router.push(`/car/${params.id}?compare=${newCompareIds.join(",")}`)
-      }
+      removeFromComparison(carId)
+      toast({
+        title: "Removed from comparison",
+        description: "This car has been removed from your comparison list.",
+      })
     } else {
       // Add to comparison
-      const newCompareIds = [...compareIds, params.id]
-      router.push(`/car/${params.id}?compare=${newCompareIds.join(",")}`)
+      addToComparison(carId)
+      toast({
+        title: "Added to comparison",
+        description: `Car added to comparison. You now have ${comparedCarIds.length + 1} ${
+          comparedCarIds.length === 0 ? "car" : "cars"
+        } in comparison.`,
+        action:
+          comparedCarIds.length > 0 ? (
+            <Button variant="outline" size="sm" onClick={goToComparison}>
+              Compare Now
+            </Button>
+          ) : undefined,
+      })
     }
   }
 
   const goToComparison = () => {
-    router.push(`/compare?carIds=${compareIds.join(",")}`)
+    // Include the current car if it's not already in the comparison
+    const idsToCompare = isInCompare ? comparedCarIds : [...comparedCarIds, carId]
+
+    router.push(`/compare?carIds=${idsToCompare.join(",")}`)
   }
 
   useEffect(() => {
@@ -354,9 +367,9 @@ export default function CarDetailsPage() {
                     {isInCompare ? "Remove from Comparison" : "Add to Comparison"}
                   </Button>
 
-                  {compareIds.length > 1 && (
-                    <Button variant="outline" className="w-full" onClick={goToComparison}>
-                      Compare {compareIds.length} Cars
+                  {comparedCarIds.length > 0 && (
+                    <Button variant="default" className="w-full mt-2" onClick={goToComparison}>
+                      {comparedCarIds.length > 1 ? `Compare ${comparedCarIds.length} Cars` : "Go to Comparison Page"}
                     </Button>
                   )}
                 </div>
